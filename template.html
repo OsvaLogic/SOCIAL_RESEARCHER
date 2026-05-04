@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Analítico - Instagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #050507;
+            --panel-bg: #0c0e14;
+            --rog-red: #ff003c;
+            --rog-red-dim: rgba(255, 0, 60, 0.15);
+            --hacker-green: #00ff41;
+            --hacker-green-dim: rgba(0, 255, 65, 0.15);
+            --text-main: #e2e8f0;
+            --text-muted: #475569;
+            --glow-red: 0 0 15px rgba(255, 0, 60, 0.5);
+            --glow-green: 0 0 15px rgba(0, 255, 65, 0.4);
+            --angle-cut: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+            --angle-cut-btn: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+        }
+        
+        body { 
+            font-family: 'Rajdhani', sans-serif; 
+            background-color: var(--bg-base); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0; 
+            text-transform: uppercase;
+            background-image: 
+                linear-gradient(rgba(255, 0, 60, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 0, 60, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 50% 0%, rgba(255, 0, 60, 0.1) 0%, transparent 60%); z-index: -1; pointer-events: none; }
+        body::after { content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); z-index: 999; background-size: 100% 4px; pointer-events: none; }
+        
+        .header-wrapper {
+            border-bottom: 1px solid rgba(255,0,60,0.3);
+            padding: 25px 0;
+            margin-bottom: 40px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: linear-gradient(180deg, rgba(255,0,60,0.05) 0%, transparent 100%);
+        }
+        .header-wrapper::after { content: ''; position: absolute; bottom: -2px; width: 200px; height: 3px; background: var(--rog-red); box-shadow: var(--glow-red); }
+        .header-wrapper h1 { margin: 0; font-size: 3.5rem; font-weight: 700; letter-spacing: 4px; color: #fff; text-shadow: 0 0 15px rgba(255, 0, 60, 0.5); }
+        .header-wrapper h1 span { color: var(--rog-red); }
+        .header-wrapper p { font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: var(--text-muted); margin: 0; margin-top: 5px; letter-spacing: 2px;}
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; position: relative; z-index: 2; }
+        
+        .card { 
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 30px; 
+            margin-bottom: 40px;
+            clip-path: var(--angle-cut);
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 30px; height: 2px; background: var(--rog-red); }
+        .card::after { content: ''; position: absolute; bottom: 0; right: 20px; width: 50px; height: 2px; background: var(--hacker-green); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; }
+        .card-header h2 { margin: 0; font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: 2px; display: flex; align-items: center; gap: 10px;}
+        .card-header h2::before { content: '>'; color: var(--rog-red); }
+        .badge-count { background: rgba(0,0,0,0.8); color: var(--hacker-green); padding: 5px 15px; font-family: 'Share Tech Mono'; font-size: 1.1rem; border: 1px solid var(--hacker-green); clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);}
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; }
+        
+        .list-container { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); height: 400px; display: flex; flex-direction: column; position: relative; }
+        .list-header-title { padding: 15px 20px; font-size: 1.3rem; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .red-title { border-bottom: 1px solid var(--rog-red); background: linear-gradient(90deg, var(--rog-red-dim) 0%, transparent 100%); color: #fff; }
+        .red-title .badge-count { border-color: var(--rog-red); color: var(--rog-red); box-shadow: 0 0 10px rgba(255,0,60,0.2); }
+        
+        .green-title { border-bottom: 1px solid var(--hacker-green); background: linear-gradient(90deg, var(--hacker-green-dim) 0%, transparent 100%); color: #fff; }
+        .green-title .badge-count { border-color: var(--hacker-green); color: var(--hacker-green); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+        
+        .cyan-title { border-bottom: 1px solid #00f3ff; background: linear-gradient(90deg, rgba(0, 243, 255, 0.15) 0%, transparent 100%); color: #fff; }
+        .cyan-title .badge-count { border-color: #00f3ff; color: #00f3ff; box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+        
+        .white-title { border-bottom: 1px solid #e2e8f0; background: linear-gradient(90deg, rgba(226, 232, 240, 0.15) 0%, transparent 100%); color: #fff; }
+        .white-title .badge-count { border-color: #e2e8f0; color: #e2e8f0; box-shadow: 0 0 10px rgba(226, 232, 240, 0.2); }
+        
+        .user-list { overflow-y: auto; padding: 15px; margin: 0; list-style: none; flex-grow: 1; }
+        .user-list::-webkit-scrollbar { width: 6px; }
+        .user-list::-webkit-scrollbar-track { background: #0b0d14; }
+        .user-list::-webkit-scrollbar-thumb { background-color: #334155; }
+        .user-list::-webkit-scrollbar-thumb:hover { background-color: var(--rog-red); }
+        
+        .user-item { display: flex; align-items: center; padding: 12px; border: 1px solid rgba(255,255,255,0.02); transition: all 0.2s; background: rgba(255,255,255,0.01); margin-bottom: 8px; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);}
+        .user-item:hover { transform: translateX(5px); cursor: crosshair; }
+        
+        .red-title + .user-list .user-item:hover { border-color: var(--rog-red); background: var(--rog-red-dim); box-shadow: var(--glow-red); }
+        .green-title + .user-list .user-item:hover { border-color: var(--hacker-green); background: var(--hacker-green-dim); box-shadow: var(--glow-green); }
+        .cyan-title + .user-list .user-item:hover { border-color: #00f3ff; background: rgba(0, 243, 255, 0.15); box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); }
+        .white-title + .user-list .user-item:hover { border-color: #e2e8f0; background: rgba(226, 232, 240, 0.15); box-shadow: 0 0 15px rgba(226, 232, 240, 0.4); }
+        
+        .avatar { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; font-family: 'Share Tech Mono'; font-weight: bold; font-size: 1.2rem; margin-right: 15px; flex-shrink: 0; clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); }
+        .red-avatar { background: var(--rog-red); color: #000;}
+        .green-avatar { background: var(--hacker-green); color: #000;}
+        .cyan-avatar { background: #00f3ff; color: #000;}
+        .white-avatar { background: #e2e8f0; color: #000;}
+        
+        .user-info { display: flex; flex-direction: column; }
+        .username { font-weight: 700; font-size: 1.1rem; letter-spacing: 1px; color: #fff;}
+        .user-handle { font-family: 'Share Tech Mono'; font-size: 0.8rem; color: var(--text-muted); }
+        
+        .chart-container { position: relative; height: 400px; width: 100%; padding-top: 20px;}
+        
+        .dark-input {
+            background: rgba(0,0,0,0.6);
+            color: var(--hacker-green);
+            padding: 18px 20px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            font-family: 'Share Tech Mono', monospace; 
+            font-size: 1.1rem; 
+            outline: none;
+            border-left: 3px solid var(--rog-red);
+            transition: all 0.3s;
+        }
+        .dark-input:focus { border-color: var(--rog-red); box-shadow: inset 0 0 15px rgba(255, 0, 60, 0.1); background: rgba(255, 0, 60, 0.05); }
+        
+        .btn-neon {
+            background: var(--rog-red);
+            color: #fff; 
+            border: none; 
+            padding: 18px; 
+            font-family: 'Rajdhani', sans-serif; 
+            font-weight: 700; 
+            font-size: 1.4rem; 
+            letter-spacing: 2px;
+            cursor: pointer; 
+            transition: all 0.2s; 
+            text-transform: uppercase;
+            clip-path: var(--angle-cut-btn);
+            position: relative;
+        }
+        .btn-neon:hover { background: #fff; color: var(--rog-red); box-shadow: var(--glow-red); }
+        .btn-neon:disabled { background: #222; color: #555; pointer-events: none; box-shadow: none; }
+        
+        .btn-hacker { background: transparent; border: 1px solid var(--hacker-green); color: var(--hacker-green); box-shadow: none;}
+        .btn-hacker:hover { background: var(--hacker-green); color: #000; box-shadow: var(--glow-green);}
+        
+        #status { text-align: center; margin-top: 15px; font-size: 1.1rem; min-height: 20px; font-family: 'Share Tech Mono';}
+        .error-msg { color: var(--rog-red); text-shadow: 0 0 5px rgba(255,0,60,0.5); border: 1px dashed var(--rog-red); padding: 10px; background: var(--rog-red-dim);}
+        .info-msg { color: var(--hacker-green); }
+        
+        a { color: var(--rog-red); text-decoration: none; border-bottom: 1px dashed var(--rog-red); }
+        a:hover { background: var(--rog-red); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="header-wrapper">
+        <h1>SOCIAL_<span>RESEARCHER</span></h1>
+        <p id="gen-date">SISTEMA OPERATIVO // ESPERANDO COMANDOS</p>
+    </div>
+
+    <div class="container">
+        
+        <!-- PANTALLA 1: LOGIN E INICIO -->
+        <div id="login-section" class="card" style="max-width: 500px; margin-left: auto; margin-right: auto;">
+            <div class="card-header" style="justify-content: center; border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                <h2>AUTH_OVERRIDE</h2>
+            </div>
+            <div style="text-align: left; margin-bottom: 30px; font-family: 'Share Tech Mono'; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; border-left: 2px solid var(--text-muted); padding-left: 15px;">
+                > PROTOCOLO DE CONEXIÓN ACTIVO.<br>
+                > 1. INICIA SESIÓN EN <a href="https://instagram.com" target="_blank">INSTAGRAM.COM</a><br>
+                > 2. INGRESA EL TARGET A CONTINUACIÓN.
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <input type="text" id="username" class="dark-input" placeholder="TARGET_USERNAME">
+                <button id="btn-analyze" class="btn-neon" onclick="startAnalysis()">
+                    INICIAR BRECHA // ENLAZAR
+                </button>
+                <div id="status" class="info-msg"></div>
+            </div>
+        </div>
+
+        <!-- PANTALLA 2: DASHBOARD DE RESULTADOS (Oculto al inicio) -->
+        <div id="dashboard-section" style="display: none;">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+                <button onclick="exportToCSV()" class="btn-neon btn-hacker" style="font-size: 1rem; padding: 10px 20px;">
+                    [↓] DESCARGAR DATOS CSV
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>[★] TOP 10 STALKERS & SUPER FANS</h2>
+                    <span class="badge-count">MATRIZ: LIKES & COMMENTS</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>[!] RED RELACIONAL DE TARGETS</h2>
+                </div>
+                <div class="grid">
+                    <div class="list-container">
+                        <div class="list-header-title red-title">
+                            <span>TARGETS HOSTILES (NO SIGUEN)</span>
+                            <span class="badge-count" id="not-following-count">000</span>
+                        </div>
+                        <ul class="list-body user-list" id="not-following-list">
+                        </ul>
+                    </div>
+                    <div class="list-container">
+                        <div class="list-header-title green-title">
+                            <span>ALIADOS (TUS FANS)</span>
+                            <span class="badge-count" id="fans-count">000</span>
+                        </div>
+                        <ul class="list-body user-list" id="fans-list">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>[≡] DATABANKS: REGISTROS TOTALES</h2>
+            </div>
+            <div class="grid">
+                <div class="list-container">
+                    <div class="list-header-title cyan-title">
+                        <span>SEGUIDORES (FOLLOWERS)</span>
+                        <span class="badge-count" id="total-followers-count">000</span>
+                    </div>
+                    <ul class="list-body user-list" id="total-followers-list">
+                    </ul>
+                </div>
+                <div class="list-container">
+                    <div class="list-header-title white-title">
+                        <span>SEGUIDOS (FOLLOWING)</span>
+                        <span class="badge-count" id="total-following-count">000</span>
+                    </div>
+                    <ul class="list-body user-list" id="total-following-list">
+                    </ul>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+        let globalData = null;
+
+        function startAnalysis() {
+            const user = document.getElementById('username').value;
+            const status = document.getElementById('status');
+            const btn = document.getElementById('btn-analyze');
+            
+            if(!user) {
+                status.className = "error-msg";
+                status.innerHTML = "[!] TARGET REQUERIDO.";
+                return;
+            }
+
+            status.className = "info-msg";
+            status.innerHTML = "<br>[*] ESTABLECIENDO CONEXIÓN CON SERVIDORES DE IG...<br><span style='font-size:0.8rem; color:var(--text-muted);'>BYPASSEANDO SEGURIDAD... ESPERAR.</span>";
+            btn.disabled = true;
+            btn.innerHTML = "SINCRONIZANDO...";
+            
+            fetch('/api/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: user})
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = "RE-ENLAZAR";
+
+                if(data.error) {
+                    status.className = "error-msg";
+                    status.innerHTML = "[!] ACCESO DENEGADO:<br>" + data.error;
+                } else {
+                    globalData = data;
+                    
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('dashboard-section').style.display = 'block';
+                    
+                    document.getElementById('gen-date').innerText = "EXTRACCIÓN COMPLETADA // " + data.date;
+                    document.getElementById('not-following-count').innerText = data.not_following.length;
+                    document.getElementById('fans-count').innerText = data.fans.length;
+                    document.getElementById('total-followers-count').innerText = data.followers.length;
+                    document.getElementById('total-following-count').innerText = data.following.length;
+                    
+                    const createItem = (username, type) => {
+                        let avatarClass, subtitle;
+                        if(type === 'red') { avatarClass = 'red-avatar'; subtitle = 'ID_CLASS: NON-COMPLIANT'; }
+                        else if(type === 'green') { avatarClass = 'green-avatar'; subtitle = 'ID_CLASS: ALLIED_USER'; }
+                        else if(type === 'cyan') { avatarClass = 'cyan-avatar'; subtitle = 'ID_CLASS: FOLLOWER'; }
+                        else { avatarClass = 'white-avatar'; subtitle = 'ID_CLASS: FOLLOWING'; }
+                        const initial = username ? username.charAt(0).toUpperCase() : "?";
+                        return `<li class="user-item">
+                                    <div class="avatar ${avatarClass}">${initial}</div>
+                                    <div class="user-info">
+                                        <span class="username">@${username}</span>
+                                        <span class="user-handle">${subtitle}</span>
+                                    </div>
+                                </li>`;
+                    };
+
+                    document.getElementById('not-following-list').innerHTML = data.not_following.length > 0 ? data.not_following.map(u => createItem(u, 'red')).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted); font-family:Share Tech Mono;'>[ VACÍO ]</li>";
+                    document.getElementById('fans-list').innerHTML = data.fans.length > 0 ? data.fans.map(u => createItem(u, 'green')).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted); font-family:Share Tech Mono;'>[ VACÍO ]</li>";
+                    document.getElementById('total-followers-list').innerHTML = data.followers.length > 0 ? data.followers.map(u => createItem(u, 'cyan')).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted); font-family:Share Tech Mono;'>[ VACÍO ]</li>";
+                    document.getElementById('total-following-list').innerHTML = data.following.length > 0 ? data.following.map(u => createItem(u, 'white')).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted); font-family:Share Tech Mono;'>[ VACÍO ]</li>";
+
+                    const labels = data.ranking.map(item => item[0]);
+                    const points = data.ranking.map(item => item[1]);
+                    renderChart(labels, points);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = "FORZAR REINICIO";
+                status.className = "error-msg";
+                status.innerHTML = "[!] SYSTEM FAILURE. CONEXIÓN AL HOST LOCAL PERDIDA.";
+            });
+        }
+
+        function renderChart(labels, points) {
+            const ctx = document.getElementById('rankingChart').getContext('2d');
+            
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(255, 0, 60, 0.8)');
+            gradient.addColorStop(1, 'rgba(255, 0, 60, 0.1)');
+
+            if(chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ENGAGEMENT_SCORE',
+                        data: points,
+                        backgroundColor: gradient,
+                        borderColor: '#ff003c',
+                        borderWidth: 2,
+                        borderRadius: 0,
+                        barThickness: 'flex',
+                        maxBarThickness: 45
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: 'rgba(255, 0, 60, 0.1)' }, ticks: { color: '#ff003c', font: {family: 'Share Tech Mono'} } },
+                        x: { grid: { display: false }, ticks: { color: '#ff003c', font: {family: 'Share Tech Mono'} } }
+                    },
+                    plugins: { 
+                        legend: { display: true, position: 'bottom', labels: { font: { family: 'Share Tech Mono', size: 14 }, color: '#475569' } },
+                        tooltip: { backgroundColor: '#0c0e14', titleFont: { family: 'Rajdhani', size: 18 }, bodyFont: { family: 'Share Tech Mono', size: 14 }, padding: 15, cornerRadius: 0, borderColor: '#ff003c', borderWidth: 1 }
+                    }
+                }
+            });
+        }
+
+        function exportToCSV() {
+            if(!globalData) return;
+            
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "CATEGORIA,USUARIO,PUNTOS_INTERACCION\n";
+            
+            globalData.not_following.forEach(u => {
+                csvContent += `TARGET_HOSTIL,${u},0\n`;
+            });
+            
+            globalData.fans.forEach(u => {
+                csvContent += `ALIADO_FAN,${u},0\n`;
+            });
+            
+            globalData.followers.forEach(u => {
+                csvContent += `SEGUIDOR_TOTAL,${u},0\n`;
+            });
+            
+            globalData.following.forEach(u => {
+                csvContent += `TARGET_SEGUIDO,${u},0\n`;
+            });
+            
+            globalData.ranking.forEach(r => {
+                csvContent += `TOP_STALKER,${r[0]},${r[1]}\n`;
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `SOCIAL_RESEARCHER_REPORT_${new Date().getTime()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
