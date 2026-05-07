@@ -1,9 +1,15 @@
+# Entornos Virtuales
+venv/
+env/
+
+# Archivos compilados y de caché de Python
 __pycache__/
 *.py[cod]
 *$py.class
-venv/
-.venv/
+
+# Carpetas de datos y sesiones
 data/
+sessions/
+
+# Exportaciones generadas por la aplicación
 *.csv
-.env
-.DS_Store

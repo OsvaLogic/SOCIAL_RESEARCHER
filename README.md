@@ -1,18 +1,19 @@
-# 🕵️‍♂️ SOCIAL RESEARCHER | IG_NEXUS
+# 🕵️‍♂️ SOCIAL RESEARCHER
 
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.0%20(Primera_Versi%C3%B3n)-00f3ff?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.1-00f3ff?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10+-ff003c?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-Web_Server-00ff41?style=for-the-badge&logo=flask&logoColor=black)
 
-> **¡Lanzamiento de la Primera Versión (v1.0)!** 🚀  
+> **¡Actualización a la Versión (v1.1)!** 🚀  
 > Una herramienta de inteligencia local avanzada para analizar perfiles de Instagram. Olvídate de los bloqueos y contraseñas: este sistema extrae silenciosamente la sesión de tu navegador local y despliega los datos en un Dashboard inmersivo con estética Cyberpunk y ASUS ROG.
 
 ## ✨ Características Principales
 * 🔐 **Auth Bypass Local:** Extrae la sesión local (`sessionid` y `csrftoken`) de tu navegador para evadir el Error 403 y los mecanismos antibot. ¡No necesitas entregar tu contraseña al script!
-* 🕸️ **Cruce Relacional:** Descubre instantáneamente quién no te sigue de vuelta (*Targets Hostiles*) y quiénes son tus seguidores más leales.
-* 🏆 **Top Stalkers / Super Fans:** Un algoritmo de *engagement* que escanea interacciones recientes (likes y comentarios) para revelarte quién interactúa más contigo.
-* 💻 **Dashboard High-Tech:** Una interfaz web inmersiva construida con Flask, HTML/CSS y Chart.js, con un diseño oscuro, luces de neón y cortes angulares.
-* 💾 **Exportación de Datos CSV:** Descarga toda tu base de datos de seguidores y rankings en formato `.csv` con un solo clic.
+* ⚡ **Motor Fast-Slice Multihilo:** Extracción de datos en tiempo récord (segundos) saltando las restricciones de red mediante peticiones concurrentes y límites inteligentes.
+* 🕸️ **Estado Relacional:** Descubre al instante quiénes sigues pero no te siguen de vuelta, y rastrea celebridades de más de 3,000 seguidores.
+* 🏆 **Núcleo de Interacciones:** Algoritmo veloz que separa a tus *Top Stalkers* (quienes más interactúan) de los *Fantasmas* (seguidores con 0 interacción).
+* 💻 **Dashboard High-Tech:** Una interfaz inmersiva (Dark/Espacio) construida con Flask y Particles.js, limpia y sin rodeos.
+* 💾 **Exportación de Reportes:** Descarga todos los resultados y clasificaciones en un reporte unificado `.csv` con un solo clic.
 
 ## ⚙️ Requisitos Previos
 * **Python 3.10** o superior.

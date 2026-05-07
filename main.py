@@ -13,7 +13,7 @@ def home():
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    data = request.json
+    data = request.json or {}
     username = data.get("username", "").strip().replace("@", "")
     
     if not username:
@@ -32,17 +32,16 @@ def analyze():
         print(f"    -> {text}")
 
     try:
-        not_following, fans, followers, following = engine.get_followers_and_following(server_progress)
-        ranking = engine.get_interaction_ranking(server_progress)
+        relational_data = engine.get_relational_data(server_progress)
+        ranking_data = engine.get_interaction_ranking(relational_data["followers"], server_progress)
         
         print("\n[+] EXTRACCIÓN EXITOSA. Transfiriendo datos al Dashboard...")
         return jsonify({
             "success": True,
-            "not_following": not_following,
-            "fans": fans,
-            "followers": followers,
-            "following": following,
-            "ranking": ranking,
+            "not_following": relational_data["not_following"],
+            "celebrities": relational_data["celebrities"],
+            "top_interactions": ranking_data["top"],
+            "least_interactions": ranking_data["bottom"],
             "date": datetime.now().strftime("%d de %B, %Y a las %H:%M:%S")
         })
     except Exception as e:
