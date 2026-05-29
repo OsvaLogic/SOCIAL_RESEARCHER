@@ -42,6 +42,9 @@ def analyze():
             "celebrities": relational_data["celebrities"],
             "top_interactions": ranking_data["top"],
             "least_interactions": ranking_data["bottom"],
+            "secret_admirers": ranking_data["secret_admirers"],
+            "recent_unfollowers": relational_data["history"]["unfollowers"],
+            "new_followers": relational_data["history"]["new_followers"],
             "date": datetime.now().strftime("%d de %B, %Y a las %H:%M:%S")
         })
     except Exception as e:

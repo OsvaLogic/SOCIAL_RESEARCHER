@@ -21,6 +21,7 @@
             --success: #00ff88;
             --warning: #ffaa00;
             --purple: #b026ff;
+            --crimson: #8a0332;
         }
         
         body { 
@@ -134,6 +135,11 @@
         .purple-title + .user-list .user-item:hover { border-color: var(--purple); box-shadow: inset 0 0 15px rgba(176,38,255,0.2); }
         .purple-avatar { background: var(--purple); }
 
+        .crimson-title { border-bottom: 1px solid var(--crimson); background: linear-gradient(90deg, rgba(138,3,50,0.15), transparent); color: #fff; }
+        .crimson-title .badge-count { background: transparent; border-color: var(--crimson); color: var(--crimson); box-shadow: 0 0 10px rgba(138,3,50,0.4); }
+        .crimson-title + .user-list .user-item:hover { border-color: var(--crimson); box-shadow: inset 0 0 15px rgba(138,3,50,0.2); }
+        .crimson-avatar { background: var(--crimson); }
+
         .user-info { display: flex; flex-direction: column; }
         .username { font-weight: 700; font-size: 1.1rem; color: #fff; font-family: 'Orbitron', sans-serif;}
         .user-handle { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;}
@@ -184,6 +190,17 @@
         
         a { color: var(--primary); text-decoration: none; transition: all 0.3s; border-bottom: 1px dashed transparent;}
         a:hover { color: var(--primary-hover); border-bottom-color: var(--primary-hover); text-shadow: var(--glow); }
+        
+        /* Nueva animación Cyberpunk para la carga */
+        @keyframes pulse-neon {
+            0% { text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); opacity: 1; }
+            50% { text-shadow: 0 0 2px var(--primary); opacity: 0.5; }
+            100% { text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); opacity: 1; }
+        }
+        .loading-glitch {
+            animation: pulse-neon 1.5s infinite;
+            letter-spacing: 3px;
+        }
     </style>
 </head>
 <body>
@@ -265,6 +282,45 @@
                     </div>
             </div>
         </div>
+
+        <!-- TARJETA: ADMIRADORES SECRETOS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>INTELIGENCIA CLASIFICADA</h2>
+            </div>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+                <div class="list-container">
+                    <div class="list-header-title purple-title">
+                        <span>ADMIRADORES SECRETOS (ESPÍAS)</span>
+                        <span class="badge-count" id="secret-admirers-count">000</span>
+                    </div>
+                    <ul class="list-body user-list" id="secret-admirers-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVA TARJETA: MÁQUINA DEL TIEMPO (SQLITE) -->
+        <div class="card">
+            <div class="card-header">
+                <h2>MÁQUINA DEL TIEMPO (HISTORIAL LOCAL)</h2>
+            </div>
+            <div class="grid">
+                <div class="list-container">
+                    <div class="list-header-title crimson-title">
+                        <span>UNFOLLOWERS RECIENTES (BAJAS)</span>
+                        <span class="badge-count" id="unfollowers-count">000</span>
+                    </div>
+                    <ul class="list-body user-list" id="unfollowers-list"></ul>
+                </div>
+                <div class="list-container">
+                    <div class="list-header-title green-title">
+                        <span>NUEVOS SEGUIDORES (ALTAS)</span>
+                        <span class="badge-count" id="new-followers-count">000</span>
+                    </div>
+                    <ul class="list-body user-list" id="new-followers-list"></ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -282,7 +338,7 @@
             }
 
             status.className = "info-msg";
-            status.innerHTML = "<br>[*] SINCRONIZANDO CON EL VACÍO...<br><span style='font-size:0.9rem; color:var(--text-muted);'>BYPASS ACTIVO. ESPERAR.</span>";
+            status.innerHTML = "<br><span class='loading-glitch'>[*] SINCRONIZANDO CON EL VACÍO...</span><br><span style='font-size:0.9rem; color:var(--text-muted);'>BYPASS ACTIVO. ESPERANDO PAQUETES.</span>";
             btn.disabled = true;
             btn.innerHTML = "EXTRAYENDO...";
             
@@ -308,6 +364,9 @@
                     document.getElementById('gen-date').innerText = "SINCRONIZACIÓN EXITOSA // " + data.date;
                     document.getElementById('not-following-count').innerText = data.not_following.length;
                     document.getElementById('celebrities-count').innerText = data.celebrities.length;
+                    document.getElementById('secret-admirers-count').innerText = data.secret_admirers.length;
+                    document.getElementById('unfollowers-count').innerText = data.recent_unfollowers.length;
+                    document.getElementById('new-followers-count').innerText = data.new_followers.length;
                     
                     // TOP INTERACTUAN
                     document.getElementById('top-list').innerHTML = data.top_interactions.map(r => `
@@ -350,6 +409,36 @@
                                 </span>
                             </div>
                         </li>`).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted);'>[ NO SIGUES A NINGUNA CELEBRIDAD ]</li>";
+
+                    // ADMIRADORES SECRETOS / ESPÍAS
+                    document.getElementById('secret-admirers-list').innerHTML = data.secret_admirers.length > 0 ? data.secret_admirers.map(r => `
+                        <li class="user-item">
+                            <div class="avatar purple-avatar">👁️</div>
+                            <div class="user-info">
+                                <a href="https://instagram.com/${r[0]}" target="_blank" class="username" style="border:none;">@${r[0]}</a>
+                                <span class="user-handle" style="color:var(--text-main);">PUNTOS DE INTERACCIÓN: <strong>${r[1]}</strong> | NO TE SIGUE</span>
+                            </div>
+                        </li>`).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted);'>[ RED LIMPIA. NO SE DETECTARON ESPÍAS. ]</li>";
+
+                    // MÁQUINA DEL TIEMPO: UNFOLLOWERS
+                    document.getElementById('unfollowers-list').innerHTML = data.recent_unfollowers.length > 0 ? data.recent_unfollowers.map(u => `
+                        <li class="user-item">
+                            <div class="avatar crimson-avatar">💔</div>
+                            <div class="user-info">
+                                <a href="https://instagram.com/${u}" target="_blank" class="username" style="border:none;">@${u}</a>
+                                <span class="user-handle" style="color:var(--crimson);">TE DEJÓ DE SEGUIR RECIENTEMENTE</span>
+                            </div>
+                        </li>`).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted);'>[ HISTORIAL LIMPIO / PRIMER ESCANEO ]</li>";
+
+                    // MÁQUINA DEL TIEMPO: NUEVOS SEGUIDORES
+                    document.getElementById('new-followers-list').innerHTML = data.new_followers.length > 0 ? data.new_followers.map(u => `
+                        <li class="user-item">
+                            <div class="avatar green-avatar">➕</div>
+                            <div class="user-info">
+                                <a href="https://instagram.com/${u}" target="_blank" class="username" style="border:none;">@${u}</a>
+                                <span class="user-handle" style="color:var(--success);">NUEVO SEGUIDOR REGISTRADO</span>
+                            </div>
+                        </li>`).join('') : "<li style='text-align:center; padding: 30px; color:var(--text-muted);'>[ SIN NUEVAS ALTAS / PRIMER ESCANEO ]</li>";
                 }
             })
             .catch(err => {
@@ -380,6 +469,18 @@
 
             globalData.celebrities.forEach(c => {
                 csvContent += `CELEBRIDAD_>3K,${c.username},${c.followers_count}\n`;
+            });
+
+            globalData.secret_admirers.forEach(r => {
+                csvContent += `ADMIRADOR_SECRETO(ESPIA),${r[0]},${r[1]}\n`;
+            });
+
+            globalData.recent_unfollowers.forEach(u => {
+                csvContent += `UNFOLLOWER_RECIENTE(BAJA),${u},0\n`;
+            });
+            
+            globalData.new_followers.forEach(u => {
+                csvContent += `NUEVO_SEGUIDOR(ALTA),${u},0\n`;
             });
             
             const encodedUri = encodeURI(csvContent);

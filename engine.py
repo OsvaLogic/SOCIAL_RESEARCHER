@@ -2,16 +2,19 @@ import instaloader
 import time
 import random
 import os
+import sqlite3
 from collections import defaultdict
 from typing import Tuple, List, Callable, Optional
+from datetime import datetime
 import browser_cookie3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from itertools import islice
 
 class InstagramEngine:
-    def __init__(self, session_dir: str = "data/sessions"):
+    def __init__(self, session_dir: str = "data/sessions", db_path: str = "data/history.db"):
         self.session_dir = session_dir
         os.makedirs(self.session_dir, exist_ok=True)
+        self.db_path = db_path
             
         self.L = instaloader.Instaloader(
             quiet=True, 
@@ -28,6 +31,22 @@ class InstagramEngine:
         })
         self.profile = None
         self.username = None
+        self._init_db()
+
+    def _init_db(self):
+        """Inicializa la base de datos SQLite local para el historial de la Máquina del Tiempo."""
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS followers_history (
+                    username TEXT,
+                    follower_id TEXT,
+                    last_seen TIMESTAMP,
+                    PRIMARY KEY (username, follower_id)
+                )
+            ''')
+            conn.commit()
 
     def login(self, username: str) -> Tuple[bool, str]:
         self.username = username
@@ -84,6 +103,34 @@ class InstagramEngine:
         except Exception as e:
             return False, f"Error de acceso: {str(e)}"
 
+    def _track_history(self, current_followers: set) -> dict:
+        """Compara los seguidores actuales con la base de datos para encontrar Unfollowers y Nuevos."""
+        if not self.username: return {"unfollowers": [], "new_followers": []}
+        unfollowers, new_followers = [], []
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT follower_id FROM followers_history WHERE username = ?', (self.username,))
+            last_followers = set(row[0] for row in cursor.fetchall())
+            
+            if last_followers: # Si hay historial previo
+                unfollowers = list(last_followers - current_followers)
+                new_followers = list(current_followers - last_followers)
+                
+                # OPTIMIZACIÓN: Ejecución en bloque (Bulk Delete)
+                if unfollowers:
+                    cursor.executemany('DELETE FROM followers_history WHERE username = ? AND follower_id = ?', [(self.username, uf) for uf in unfollowers])
+                    
+            now = datetime.now().isoformat()
+            
+            # OPTIMIZACIÓN: Ejecución en bloque (Bulk Insert)
+            new_to_insert = current_followers - last_followers
+            if new_to_insert:
+                cursor.executemany('INSERT INTO followers_history (username, follower_id, last_seen) VALUES (?, ?, ?)', [(self.username, nf, now) for nf in new_to_insert])
+            conn.commit()
+            
+        return {"unfollowers": unfollowers, "new_followers": new_followers}
+
     def get_relational_data(self, progress_callback: Callable[[float, str], None] = None) -> dict:
         if not self.profile:
             raise ValueError("Sesión no iniciada.")
@@ -91,35 +138,39 @@ class InstagramEngine:
         if progress_callback:
             progress_callback(0.1, "Descargando followers/following en paralelo...")
 
-        # Descarga paralela — 500 en lugar de 300 con misma velocidad gracias a más workers
+        # Extracción completa sin truncamiento (Precisión del 100% para la BD)
         with ThreadPoolExecutor(max_workers=2) as ex:
-            f_followers = ex.submit(lambda: set(f.username for f in islice(self.profile.get_followers(), 500)))
-            f_following = ex.submit(lambda: set(f.username for f in islice(self.profile.get_followees(), 500)))
-            followers, following = f_followers.result(), f_following.result()
+            f_followers = ex.submit(lambda: set(f.username for f in self.profile.get_followers()))
+            f_following_objs = ex.submit(lambda: list(self.profile.get_followees()))
+            followers, following_profiles = f_followers.result(), f_following_objs.result()
 
+        following = set(p.username for p in following_profiles)
         not_following_back = list(following - followers)
 
         if progress_callback:
-            progress_callback(0.45, "Escaneando celebridades (>3K followers)...")
+            progress_callback(0.45, "Escaneando celebridades (Motor Zero-Request)...")
 
-        def check_celeb(uname):
+        # ⚡ OPTIMIZACIÓN EXTREMA: En lugar de hacer 80 peticiones HTTP a perfiles aleatorios,
+        # filtramos cuentas verificadas en memoria (0 peticiones) y solo consultamos esas.
+        # Esto reduce el tiempo de escaneo drásticamente.
+        verified_users = [p for p in following_profiles if p.is_verified]
+
+        def check_celeb(p):
             try:
-                p = instaloader.Profile.from_username(self.L.context, uname)
+                # Solo aquí se hace la petición de red para ver los followers exactos
                 if p.followers > 3000:
                     return {
-                        "username": uname,
+                        "username": p.username,
                         "followers_count": p.followers,
-                        "follows_back": uname in followers,
+                        "follows_back": p.username in followers,
                     }
             except Exception:
                 pass
             return None
 
-        # 80 perfiles, 16 hilos — más cobertura sin penalizar velocidad
-        scan_sample = list(following)[:80]
         celebrities = []
-        with ThreadPoolExecutor(max_workers=16) as ex:
-            for res in ex.map(check_celeb, scan_sample):
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for res in ex.map(check_celeb, verified_users):
                 if res:
                     celebrities.append(res)
 
@@ -128,10 +179,15 @@ class InstagramEngine:
         if progress_callback:
             progress_callback(1.0, "Análisis completado.")
 
+        # ⏳ Ejecutar Máquina del Tiempo
+        if progress_callback: progress_callback(1.0, "Consultando base de datos temporal (SQLite)...")
+        history_data = self._track_history(followers)
+
         return {
             "not_following": not_following_back,
             "celebrities": celebrities,
             "followers": list(followers),
+            "history": history_data
         }
 
     def get_interaction_ranking(self, followers_list: list, progress_callback: Callable[[float, str], None] = None) -> dict:
@@ -144,20 +200,31 @@ class InstagramEngine:
             progress_callback(0.1, "Analizando interacciones...")
 
         def process_post(post):
-            local_scores = defaultdict(int)
-            try:
-                for i, like in enumerate(post.get_likes()):
-                    if i >= 20: break          # Ampliado de 10 → 20
-                    local_scores[like.username] += 1
-            except Exception:
-                pass
-            try:
-                for i, comment in enumerate(post.get_comments()):
-                    if i >= 20: break          # Ampliado de 10 → 20
-                    local_scores[comment.owner.username] += 3
-            except Exception:
-                pass
-            return local_scores
+            likes_sc = defaultdict(int)
+            comms_sc = defaultdict(int)
+            
+            def get_lks():
+                try:
+                    for i, like in enumerate(post.get_likes()):
+                        if i >= 20: break
+                        likes_sc[like.username] += 1
+                except Exception: pass
+                
+            def get_cms():
+                try:
+                    for i, comment in enumerate(post.get_comments()):
+                        if i >= 20: break
+                        comms_sc[comment.owner.username] += 3
+                except Exception: pass
+
+            # ⚡ OPTIMIZACIÓN: Descarga likes y comentarios en paralelo para el MISMO post.
+            with ThreadPoolExecutor(max_workers=2) as ex:
+                ex.submit(get_lks)
+                ex.submit(get_cms)
+
+            for k, v in comms_sc.items():
+                likes_sc[k] += v
+            return likes_sc
 
         # Analiza los últimos 3 posts en paralelo en lugar de solo 1
         recent_posts = list(islice(self.profile.get_posts(), 3))
@@ -173,7 +240,12 @@ class InstagramEngine:
         if not top:
             top = [("[SIN DATOS]", 0)]
 
-        ghost_pool = set(followers_list) - set(scores.keys())
+        followers_set = set(followers_list)
+        ghost_pool = followers_set - set(scores.keys())
         ghosts = random.sample(list(ghost_pool), min(15, len(ghost_pool)))
 
-        return {"top": top, "bottom": ghosts}
+        # NUEVA FUNCIONALIDAD: Admiradores Secretos / Espías (Interactúan pero NO te siguen)
+        secret_admirers = [(user, pts) for user, pts in scores.items() if user not in followers_set and user != self.username]
+        secret_admirers.sort(key=lambda x: x[1], reverse=True)
+
+        return {"top": top, "bottom": ghosts, "secret_admirers": secret_admirers[:10]}
