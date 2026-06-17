@@ -1,9 +1,13 @@
+import logging
 import os
 import webbrowser
 from threading import Timer
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 from engine import InstagramEngine
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder=".", static_folder=".")
 
@@ -21,21 +25,21 @@ def analyze():
         
     engine = InstagramEngine()
     
-    print(f"\n[*] INICIANDO BRECHA PARA TARGET: @{username}")
-    print("[-] Extrayendo llaves de seguridad del navegador local...")
+    logger.info(f"INICIANDO BRECHA PARA TARGET: @{username}")
+    logger.info("Extrayendo llaves de seguridad del navegador local...")
     success, msg = engine.login(username)
     if not success:
-        print(f"[!] FALLO: {msg}")
+        logger.error(f"FALLO: {msg}")
         return jsonify({"error": msg})
         
     def server_progress(value: float, text: str):
-        print(f"    -> {text}")
+        logger.info(f"Progreso [{int(value * 100)}%]: {text}")
 
     try:
         relational_data = engine.get_relational_data(server_progress)
         ranking_data = engine.get_interaction_ranking(relational_data["followers"], server_progress)
         
-        print("\n[+] EXTRACCIÓN EXITOSA. Transfiriendo datos al Dashboard...")
+        logger.info("EXTRACCIÓN EXITOSA. Transfiriendo datos al Dashboard...")
         return jsonify({
             "success": True,
             "not_following": relational_data["not_following"],
@@ -48,14 +52,13 @@ def analyze():
             "date": datetime.now().strftime("%d de %B, %Y a las %H:%M:%S")
         })
     except Exception as e:
+        logger.exception("Error interno durante el análisis")
         return jsonify({"error": f"Error durante el análisis: {str(e)}"})
 
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000/")
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🚀 INICIANDO SERVIDOR WEB (NO CIERRES ESTA VENTANA) 🚀")
-    print("=" * 60)
+    logger.info("🚀 INICIANDO SERVIDOR WEB (NO CIERRES ESTA VENTANA) 🚀")
     Timer(1.0, open_browser).start()
     app.run(port=5000, debug=False)

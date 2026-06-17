@@ -3,12 +3,16 @@ import time
 import random
 import os
 import sqlite3
+import logging
+from contextlib import closing
 from collections import defaultdict
 from typing import Tuple, List, Callable, Optional
 from datetime import datetime
 import browser_cookie3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from itertools import islice
+
+logger = logging.getLogger(__name__)
 
 class InstagramEngine:
     def __init__(self, session_dir: str = "data/sessions", db_path: str = "data/history.db"):
@@ -36,17 +40,17 @@ class InstagramEngine:
     def _init_db(self):
         """Inicializa la base de datos SQLite local para el historial de la Máquina del Tiempo."""
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS followers_history (
-                    username TEXT,
-                    follower_id TEXT,
-                    last_seen TIMESTAMP,
-                    PRIMARY KEY (username, follower_id)
-                )
-            ''')
-            conn.commit()
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            with conn: # Maneja el commit/rollback
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS followers_history (
+                        username TEXT,
+                        follower_id TEXT,
+                        last_seen TIMESTAMP,
+                        PRIMARY KEY (username, follower_id)
+                    )
+                ''')
 
     def login(self, username: str) -> Tuple[bool, str]:
         self.username = username
@@ -66,8 +70,8 @@ class InstagramEngine:
                 c = fn(domain_name='instagram.com')
                 if any(cookie.name == 'sessionid' for cookie in c):
                     return c
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"No se pudieron extraer cookies de un navegador: {e}")
             return None
 
         with ThreadPoolExecutor(max_workers=len(BROWSERS)) as ex:
@@ -108,26 +112,26 @@ class InstagramEngine:
         if not self.username: return {"unfollowers": [], "new_followers": []}
         unfollowers, new_followers = [], []
         
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT follower_id FROM followers_history WHERE username = ?', (self.username,))
-            last_followers = set(row[0] for row in cursor.fetchall())
-            
-            if last_followers: # Si hay historial previo
-                unfollowers = list(last_followers - current_followers)
-                new_followers = list(current_followers - last_followers)
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT follower_id FROM followers_history WHERE username = ?', (self.username,))
+                last_followers = set(row[0] for row in cursor.fetchall())
                 
-                # OPTIMIZACIÓN: Ejecución en bloque (Bulk Delete)
-                if unfollowers:
-                    cursor.executemany('DELETE FROM followers_history WHERE username = ? AND follower_id = ?', [(self.username, uf) for uf in unfollowers])
+                if last_followers: # Si hay historial previo
+                    unfollowers = list(last_followers - current_followers)
+                    new_followers = list(current_followers - last_followers)
                     
-            now = datetime.now().isoformat()
-            
-            # OPTIMIZACIÓN: Ejecución en bloque (Bulk Insert)
-            new_to_insert = current_followers - last_followers
-            if new_to_insert:
-                cursor.executemany('INSERT INTO followers_history (username, follower_id, last_seen) VALUES (?, ?, ?)', [(self.username, nf, now) for nf in new_to_insert])
-            conn.commit()
+                    # OPTIMIZACIÓN: Ejecución en bloque (Bulk Delete)
+                    if unfollowers:
+                        cursor.executemany('DELETE FROM followers_history WHERE username = ? AND follower_id = ?', [(self.username, uf) for uf in unfollowers])
+                        
+                now = datetime.now().isoformat()
+                
+                # OPTIMIZACIÓN: Ejecución en bloque (Bulk Insert)
+                new_to_insert = current_followers - last_followers
+                if new_to_insert:
+                    cursor.executemany('INSERT INTO followers_history (username, follower_id, last_seen) VALUES (?, ?, ?)', [(self.username, nf, now) for nf in new_to_insert])
             
         return {"unfollowers": unfollowers, "new_followers": new_followers}
 
@@ -164,8 +168,8 @@ class InstagramEngine:
                         "followers_count": p.followers,
                         "follows_back": p.username in followers,
                     }
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error analizando verificados ({p.username}): {e}")
             return None
 
         celebrities = []
@@ -208,14 +212,16 @@ class InstagramEngine:
                     for i, like in enumerate(post.get_likes()):
                         if i >= 20: break
                         likes_sc[like.username] += 1
-                except Exception: pass
+            except Exception as e:
+                logger.debug(f"Error procesando likes: {e}")
                 
             def get_cms():
                 try:
                     for i, comment in enumerate(post.get_comments()):
                         if i >= 20: break
                         comms_sc[comment.owner.username] += 3
-                except Exception: pass
+                except Exception as e:
+                    logger.debug(f"Error procesando comentarios: {e}")
 
             # ⚡ OPTIMIZACIÓN: Descarga likes y comentarios en paralelo para el MISMO post.
             with ThreadPoolExecutor(max_workers=2) as ex:
