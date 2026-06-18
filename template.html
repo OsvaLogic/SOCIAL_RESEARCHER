@@ -239,6 +239,9 @@
                 <button onclick="exportToCSV()" class="btn-primary btn-outline" style="font-size: 0.9rem; padding: 10px 20px;">
                     [DESCARGAR DATOS .CSV]
                 </button>
+                <button onclick="exportToJSON()" class="btn-primary btn-outline" style="font-size: 0.9rem; padding: 10px 20px; margin-left: 15px;">
+                    [DESCARGAR DATOS .JSON]
+                </button>
             </div>
 
             <div class="card">
@@ -487,6 +490,18 @@
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", `SOCIAL_RESEARCHER_REPORT_${new Date().getTime()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportToJSON() {
+            if(!globalData) return;
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalData, null, 4));
+            const link = document.createElement("a");
+            link.setAttribute("href", dataStr);
+            link.setAttribute("download", `SOCIAL_RESEARCHER_REPORT_${new Date().getTime()}.json`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

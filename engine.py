@@ -212,8 +212,8 @@ class InstagramEngine:
                     for i, like in enumerate(post.get_likes()):
                         if i >= 20: break
                         likes_sc[like.username] += 1
-            except Exception as e:
-                logger.debug(f"Error procesando likes: {e}")
+                except Exception as e:
+                    logger.debug(f"Error procesando likes: {e}")
                 
             def get_cms():
                 try:

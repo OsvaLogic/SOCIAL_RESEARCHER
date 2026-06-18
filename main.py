@@ -9,6 +9,11 @@ from engine import InstagramEngine
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Añadimos un manejador para guardar el registro histórico en un archivo físico
+file_handler = logging.FileHandler("operaciones.log", encoding="utf-8")
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
 app = Flask(__name__, template_folder=".", static_folder=".")
 
 @app.route("/")

@@ -13,3 +13,5 @@ sessions/
 
 # Exportaciones generadas por la aplicación
 *.csv
+*.json
+*.log
